@@ -57,6 +57,7 @@ def getfieldsandvalues(o):
 # must check for container types and recurse on them.
 # currently: we assume that the source and dest type must be equal,
 # and that they accept the "right" kind of arguments when constructing.
+# this is recursive. might have some issues if the mapped object is large.      ds
 def mapobj(source, dest):
     source_type = type(source)
     dest_type = type(dest)
@@ -138,23 +139,23 @@ class TestMappingFromDict(TestCase):
     DICT_IN = {
         "a": 5,
         "b": "what",
-        "c": [9, 10, 11],
+        "c": [{1: 2}],
         "d": {"1": 1, "2": 2}
     }
 
     def test_mapping(self):
-        reference = MyItem(7, "asd", [1, 2, 3], {10: "w", 20: "xxx"})
+        reference = MyItem(7, "asd", [{2: 3}], {10: "w", 20: "xxx"})
 
 
         instance = mapdict(self.DICT_IN, reference)
-        expected = MyItem(5, "what", [9,10,11], {1: "1", 2: "2"})
+        expected = MyItem(5, "what", [{1: 2}], {1: "1", 2: "2"})
         self.assertEquals(expected, instance)
 
     def test_string_casting(self):
-        reference = MyItem("7", "asd", ["a", "b"], {10: "w", 20: "xxx"})
+        reference = MyItem("7", "asd", [{"2": "3"}], {10: "w", 20: "xxx"})
 
         instance = mapdict(self.DICT_IN, reference)
-        expected = MyItem("5", "what", ["9", "10", "11"], {1: "1", 2: "2"})
+        expected = MyItem("5", "what", [{"1": "2"}], {1: "1", 2: "2"})
         self.assertEquals(expected, instance)
 
 
