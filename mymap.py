@@ -2,8 +2,55 @@
 from inspect import getargspec, getmembers
 from unittest import TestCase, main
 
-from collections import MutableSequence, Mapping, Container
+from collections import MutableSequence, Mapping, Container, OrderedDict, namedtuple
 
+# mapper will be invoked with the a value of type "origin" and the reference object,
+#  and must always return a value of type "destination" (or a compatible/child type? what about long/int)?
+TypeMapping = namedtuple("TypeMapping", ["origin", "destination", "mapper"])
+
+# later, we could generalize via sponsor-selector, where type-based mappings are just one of the possible
+# mapping criterias.
+
+type_based_mappings = [
+    TypeMapping(int, int, lambda v, r: v),
+    TypeMapping(int, long, lambda v, r: long(v)),
+    TypeMapping(long, int, lambda v, r: int(v)),
+    TypeMapping(int, str, lambda v, r: "{:d}".format(v)),
+    TypeMapping(str, int, lambda v, r: int(v)),
+    TypeMapping(long, str, lambda v, r: "{:d}".format(v)),
+    TypeMapping(str, str, lambda v, r: v),
+    TypeMapping(list, list, lambda v, r: [mapobj(x, r[0]) for x in v]),
+    TypeMapping(dict, dict, lambda v, r: dict([(mapobj(x, r.keys()[0]), mapobj(y, r.values()[0])) for x, y in v.iteritems()]))
+]
+
+# supported in source -> dest
+# maybe we should do a "maptype" by default? it's useful for immutability as well,
+# and we can use a "predefined" order, then resorting to abc afterwards.
+
+# iterable -> list, set
+# iterator -> list, set
+# sequence -> list     -> EXCLUDING STRING
+
+# must check for container types and recurse on them.
+# currently: we assume that the source and dest type must be equal,
+# and that they accept the "right" kind of arguments when constructing.
+# this is recursive. might have some issues if the mapped object is large.
+def mapobj(source, dest):
+    """
+    Args:
+        source:
+        dest:
+
+    Returns:
+    """
+    source_type = type(source)
+    dest_type = type(dest)
+
+    for tbm in type_based_mappings:
+        if tbm.origin == source_type and tbm.destination == dest_type:
+            return tbm.mapper(source, dest)
+
+    raise ValueError("Could not map value {source} ({source_type}) through reference object {dest} ({dest_type})".format(**locals()))
 
 class BindException(Exception):
     pass
@@ -44,40 +91,6 @@ def getfields(o):
 
 def getfieldsandvalues(o):
     return set([(name, value) for name, value in getmembers(o) if not name.startswith("_") and not callable(value)])
-
-
-# supported in source -> dest
-# maybe we should do a "maptype" by default? it's useful for immutability as well, 
-# and we can use a "predefined" order, then resorting to abc afterwards.
-
-# iterable -> list, set
-# iterator -> list, set
-# sequence -> list     -> EXCLUDING STRING
-
-# must check for container types and recurse on them.
-# currently: we assume that the source and dest type must be equal,
-# and that they accept the "right" kind of arguments when constructing.
-# this is recursive. might have some issues if the mapped object is large.      ds
-def mapobj(source, dest):
-    source_type = type(source)
-    dest_type = type(dest)
-    if source_type == dest_type:
-        # this should be the "easy part"
-        if isinstance(source, MutableSequence):
-            # the dest_type must have at least one item, and the sequence
-            # must be homogeneous, type-wise. check for those prereqs
-            return dest_type([mapobj(x, dest[0]) for x in source])
-        elif isinstance(source, Mapping):
-            return dest_type([(mapobj(x, dest.keys()[0]), mapobj(y, dest.values()[0])) for x, y in source.iteritems()])
-        else:
-            # we should copy non-immutable types
-            # we should fail when we don't know how to handle a mapping
-            return source
-    else:
-        # arbitrary type-to-type mapping: invoke dest_type constructor. can be terribile for 
-        # user-defined type; best thing thing would be to create a "safe" register for type-to-type
-        # conversions (take a look at Dozer, or spring messageconverters, etc, for interface ideas)
-        return dest_type(source)
 
 
 def mapdict(d, reference):
