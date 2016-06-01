@@ -1,15 +1,41 @@
 #!/usr/bin/env python
 from inspect import getargspec, getmembers
 from unittest import TestCase, main
+import logging
 
 from collections import MutableSequence, Mapping, Container, OrderedDict, namedtuple
+
 
 # mapper will be invoked with the a value of type "origin" and the reference object,
 #  and must always return a value of type "destination" (or a compatible/child type? what about long/int)?
 TypeMapping = namedtuple("TypeMapping", ["origin", "destination", "mapper"])
 
 # later, we could generalize via sponsor-selector, where type-based mappings are just one of the possible
-# mapping criterias.
+# mapping criterias? is there a way we can handle the fact that there could be multiple mappers
+# interested?
+class Mapping(object):
+    def is_interested_in(self, source, reference):
+        """
+
+        Args:
+            source: source object
+            reference: reference object
+
+        Returns (bool): True if this mapper can handle the mapping; False otherwise.
+        """
+        raise NotImplementedError("must be implemented")
+
+    def map(self, source, reference):
+        """
+
+        Args:
+            source: source object
+            reference: reference object
+
+        Returns: an item of the same (or compatible) type as the reference object, result of the mapping.
+        """
+        raise NotImplementedError("must be implemented")
+
 
 type_based_mappings = [
     TypeMapping(int, int, lambda v, r: v),
@@ -20,7 +46,8 @@ type_based_mappings = [
     TypeMapping(long, str, lambda v, r: "{:d}".format(v)),
     TypeMapping(str, str, lambda v, r: v),
     TypeMapping(list, list, lambda v, r: [mapobj(x, r[0]) for x in v]),
-    TypeMapping(dict, dict, lambda v, r: dict([(mapobj(x, r.keys()[0]), mapobj(y, r.values()[0])) for x, y in v.iteritems()]))
+    TypeMapping(dict, dict, lambda v, r: dict([(mapobj(x, r.keys()[0]), mapobj(y, r.values()[0])) for x, y in v.iteritems()])),
+    TypeMapping(dict, object, lambda v, r: mapdict(v, r))
 ]
 
 # supported in source -> dest
@@ -35,6 +62,8 @@ type_based_mappings = [
 # currently: we assume that the source and dest type must be equal,
 # and that they accept the "right" kind of arguments when constructing.
 # this is recursive. might have some issues if the mapped object is large.
+
+logger = logging.getLogger("mapobj")
 def mapobj(source, dest):
     """
     Args:
@@ -46,8 +75,17 @@ def mapobj(source, dest):
     source_type = type(source)
     dest_type = type(dest)
 
+    # try a precise match first for destination type
     for tbm in type_based_mappings:
         if tbm.origin == source_type and tbm.destination == dest_type:
+            return tbm.mapper(source, dest)
+    # if not found, try a subclass mapping.
+    # TODO: we should let the mapper to specify whether it should work for subclasses or not?
+    # rethink our interface a bit with the sponsor/selector idea in mind, it could simplify
+    # our design by a great deal.
+    logger.warning("Trying subclass mapping")
+    for tbm in type_based_mappings:
+        if tbm.origin == source_type and issubclass(dest_type, tbm.destination):
             return tbm.mapper(source, dest)
 
     raise ValueError("Could not map value {source} ({source_type}) through reference object {dest} ({dest_type})".format(**locals()))
@@ -158,16 +196,13 @@ class TestMappingFromDict(TestCase):
 
     def test_mapping(self):
         reference = MyItem(7, "asd", [{2: 3}], {10: "w", 20: "xxx"})
-
-
-        instance = mapdict(self.DICT_IN, reference)
+        instance = mapobj(self.DICT_IN, reference)
         expected = MyItem(5, "what", [{1: 2}], {1: "1", 2: "2"})
         self.assertEquals(expected, instance)
 
     def test_string_casting(self):
         reference = MyItem("7", "asd", [{"2": "3"}], {10: "w", 20: "xxx"})
-
-        instance = mapdict(self.DICT_IN, reference)
+        instance = mapobj(self.DICT_IN, reference)
         expected = MyItem("5", "what", [{"1": "2"}], {1: "1", 2: "2"})
         self.assertEquals(expected, instance)
 
