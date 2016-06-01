@@ -2,7 +2,7 @@
 from inspect import getargspec, getmembers
 from unittest import TestCase, main
 
-from collections import MutableSequence
+from collections import MutableSequence, Mapping, Container
 
 
 class BindException(Exception):
@@ -61,12 +61,17 @@ def mapobj(source, dest):
     source_type = type(source)
     dest_type = type(dest)
     if source_type == dest_type:
+        # this should be the "easy part"
         if isinstance(source, MutableSequence):
             # the dest_type must have at least one item, and the sequence
             # must be homogeneous, type-wise. check for those prereqs
             return dest_type([mapobj(x, dest[0]) for x in source])
+        elif isinstance(source, Mapping):
+            return dest_type([(mapobj(x, dest.keys()[0]), mapobj(y, dest.values()[0])) for x, y in source.iteritems()])
         else:
-            return source # we should copy non-immutable types
+            # we should copy non-immutable types
+            # we should fail when we don't know how to handle a mapping
+            return source
     else:
         # arbitrary type-to-type mapping: invoke dest_type constructor. can be terribile for 
         # user-defined type; best thing thing would be to create a "safe" register for type-to-type
@@ -90,11 +95,12 @@ def mapdict(d, reference):
 
 class MyItem(object):
 
-    def __init__(self, a, b, c=None):
+    def __init__(self, a, b, c=None, d=None):
         self.a = a
         self._b = b
         self._private = 1
         self.c = c
+        self.d = d
 
     @property
     def b(self):
@@ -108,46 +114,50 @@ class MyItem(object):
         return getattr(other, "__dict__", None) is not None and self.__dict__ == other.__dict__
 
     def __str__(self):
-        return "a:{0}   b:{1}   c:{2}".format(self.a, self._b, self.c)
+        return "a:{0}   b:{1}   c:{2}  d:{3}".format(self.a, self._b, self.c, self.d)
 
     def __repr__(self):
         return str(self)
 
+
 class TestFieldInspection(TestCase):
-    DICT_IN = {
-        "a":5,
-        "b":"what",
-        "c":[9, 10, 11]
-
-    }
-
     def test_fields(self):
         i = MyItem(1, "asd")
-        self.assertEquals(set(["a", "b", "c"]), getfields(i))
+        self.assertEquals(set(["a", "b", "c", "d"]), getfields(i))
 
     def test_bind(self):
-        item = bind({"a":7, "b":"asd", "c":[3,4]},  MyItem)
-        expected = MyItem(7, "asd")
-        expected.c = [3, 4]
+        item = bind({"a":7, "b":"asd", "c":[3,4], "d": {}},  MyItem)
+        expected = MyItem(7, "asd", [3, 4], {})
         self.assertEqual(expected, item)
 
     def test_bind_fails_if_not_enough_data(self):
         self.assertRaises(BindException, bind, {"a":7, "b":"asd"},  MyItem)
 
+
+class TestMappingFromDict(TestCase):
+    DICT_IN = {
+        "a": 5,
+        "b": "what",
+        "c": [9, 10, 11],
+        "d": {"1": 1, "2": 2}
+    }
+
     def test_mapping(self):
-        reference = MyItem(7, "asd")
-        reference.c = [1,2,3]
+        reference = MyItem(7, "asd", [1, 2, 3], {10: "w", 20: "xxx"})
+
 
         instance = mapdict(self.DICT_IN, reference)
-        expected = MyItem(5, "what", [9,10,11])
+        expected = MyItem(5, "what", [9,10,11], {1: "1", 2: "2"})
         self.assertEquals(expected, instance)
 
     def test_string_casting(self):
-        reference = MyItem("7", "asd", ["a", "b"])
+        reference = MyItem("7", "asd", ["a", "b"], {10: "w", 20: "xxx"})
 
         instance = mapdict(self.DICT_IN, reference)
-        expected = MyItem("5", "what", ["9", "10", "11"])
+        expected = MyItem("5", "what", ["9", "10", "11"], {1: "1", 2: "2"})
         self.assertEquals(expected, instance)
+
+
 
 
 
