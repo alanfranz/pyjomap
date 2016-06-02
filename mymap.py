@@ -224,6 +224,8 @@ class TestMappingFromDict(TestCase):
 
 
 if __name__ == "__main__":
+    import sys
+    logging.basicConfig(level=logging.DEBUG, stream=sys.stderr)
     main()
 
 
