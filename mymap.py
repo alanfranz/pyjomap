@@ -147,12 +147,13 @@ def mapdict(d, reference):
 
 class MyItem(object):
 
-    def __init__(self, a, b, c=None, d=None):
+    def __init__(self, a, b, c=None, d=None, e=None):
         self.a = a
         self._b = b
         self._private = 1
         self.c = c
         self.d = d
+        self.e = e
 
     @property
     def b(self):
@@ -171,15 +172,22 @@ class MyItem(object):
     def __repr__(self):
         return str(self)
 
+class Other(object):
+    def __init__(self, r, s):
+        self.r = r
+        self.s = s
+
+    def __eq__(self, other):
+        return getattr(other, "__dict__", None) is not None and self.__dict__ == other.__dict__
 
 class TestFieldInspection(TestCase):
     def test_fields(self):
         i = MyItem(1, "asd")
-        self.assertEquals(set(["a", "b", "c", "d"]), getfields(i))
+        self.assertEquals(set(["a", "b", "c", "d", "e"]), getfields(i))
 
     def test_bind(self):
-        item = bind({"a":7, "b":"asd", "c":[3,4], "d": {}},  MyItem)
-        expected = MyItem(7, "asd", [3, 4], {})
+        item = bind({"a":7, "b":"asd", "c":[3,4], "d": {}, "e": []}, MyItem)
+        expected = MyItem(7, "asd", [3, 4], {}, [])
         self.assertEqual(expected, item)
 
     def test_bind_fails_if_not_enough_data(self):
@@ -191,19 +199,20 @@ class TestMappingFromDict(TestCase):
         "a": 5,
         "b": "what",
         "c": [{1: 2}],
-        "d": {"1": 1, "2": 2}
+        "d": {"1": 1, "2": 2},
+        "e": {"r": 5, "s": 6}
     }
 
     def test_mapping(self):
-        reference = MyItem(7, "asd", [{2: 3}], {10: "w", 20: "xxx"})
+        reference = MyItem(7, "asd", [{2: 3}], {10: "w", 20: "xxx"}, e=Other(9, 10))
         instance = mapobj(self.DICT_IN, reference)
-        expected = MyItem(5, "what", [{1: 2}], {1: "1", 2: "2"})
+        expected = MyItem(5, "what", [{1: 2}], {1: "1", 2: "2"}, e=Other(5, 6))
         self.assertEquals(expected, instance)
 
     def test_string_casting(self):
-        reference = MyItem("7", "asd", [{"2": "3"}], {10: "w", 20: "xxx"})
+        reference = MyItem("7", "asd", [{"2": "3"}], {10: "w", 20: "xxx"}, e=Other("a", "b"))
         instance = mapobj(self.DICT_IN, reference)
-        expected = MyItem("5", "what", [{"1": "2"}], {1: "1", 2: "2"})
+        expected = MyItem("5", "what", [{"1": "2"}], {1: "1", 2: "2"}, e=Other("5", "6"))
         self.assertEquals(expected, instance)
 
 
