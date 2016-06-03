@@ -8,20 +8,19 @@ from collections import MutableSequence, Mapping, Container, OrderedDict, namedt
 
 # mapper will be invoked with the a value of type "origin" and the reference object,
 #  and must always return a value of type "destination" (or a compatible/child type? what about long/int)?
-TypeMapping = namedtuple("TypeMapping", ["origin", "destination", "mapper"])
+#TypeMapping = namedtuple("TypeMapping", ["origin", "destination", "mapper"])
 
 # later, we could generalize via sponsor-selector, where type-based mappings are just one of the possible
 # mapping criterias? is there a way we can handle the fact that there could be multiple mappers
 # interested?
 class Mapping(object):
-    def is_interested_in(self, source, reference):
+    def interest_level(self, source, reference):
         """
-
         Args:
             source: source object
             reference: reference object
 
-        Returns (bool): True if this mapper can handle the mapping; False otherwise.
+        Returns (int): interest level. 0 means not interested; if > 0, the most interested should win.
         """
         raise NotImplementedError("must be implemented")
 
@@ -37,18 +36,44 @@ class Mapping(object):
         raise NotImplementedError("must be implemented")
 
 
-type_based_mappings = [
-    TypeMapping(int, int, lambda v, r: v),
-    TypeMapping(int, long, lambda v, r: long(v)),
-    TypeMapping(long, int, lambda v, r: int(v)),
-    TypeMapping(int, str, lambda v, r: "{:d}".format(v)),
-    TypeMapping(str, int, lambda v, r: int(v)),
-    TypeMapping(long, str, lambda v, r: "{:d}".format(v)),
-    TypeMapping(str, str, lambda v, r: v),
-    TypeMapping(list, list, lambda v, r: [mapobj(x, r[0]) for x in v]),
-    TypeMapping(dict, dict, lambda v, r: dict([(mapobj(x, r.keys()[0]), mapobj(y, r.values()[0])) for x, y in v.iteritems()])),
-    TypeMapping(dict, object, lambda v, r: mapdict(v, r))
-]
+class TypeMapping(Mapping):
+    def __init__(self, origin_type, destination_type, mapper_func):
+        self._origin_type = origin_type
+        self._destination_type = destination_type
+        self._mapper_func = mapper_func
+
+    def interest_level(self, source, reference):
+        if type(source) == self._origin_type and type(reference) == self._destination_type:
+            return 100
+        # TODO: verify if we can really to that for arbitrary classes, or we might have issues.
+        elif type(source) == self._origin_type and issubclass(type(reference), self._destination_type):
+            return 50
+        return 0
+
+    def map(self, source, reference):
+        return self._mapper_func(source, reference)
+
+class MapperRegistry(object):
+    type_based_mappings = [
+        TypeMapping(int, int, lambda v, r: v),
+        TypeMapping(int, long, lambda v, r: long(v)),
+        TypeMapping(long, int, lambda v, r: int(v)),
+        TypeMapping(int, str, lambda v, r: "{:d}".format(v)),
+        TypeMapping(str, int, lambda v, r: int(v)),
+        TypeMapping(long, str, lambda v, r: "{:d}".format(v)),
+        TypeMapping(str, str, lambda v, r: v),
+        TypeMapping(list, list, lambda v, r: [mapobj(x, r[0]) for x in v]),
+        TypeMapping(dict, dict, lambda v, r: dict([(mapobj(x, r.keys()[0]), mapobj(y, r.values()[0])) for x, y in v.iteritems()])),
+        TypeMapping(dict, object, lambda v, r: mapdict(v, r))
+    ]
+
+    def get_best_mapping(self, source, reference):
+        mapping_and_levels = ((mapping, mapping.interest_level(source, reference)) for mapping in self.type_based_mappings)
+        mapping_and_levels = [(mapping, level) for mapping, level in mapping_and_levels if level > 0]
+        if not mapping_and_levels:
+            raise ValueError("Could not map value '{source}' through reference object '{reference}'".format(**locals()))
+        mapping_and_levels.sort(key=lambda x: x[1])
+        return mapping_and_levels[-1][0]
 
 # supported in source -> dest
 # maybe we should do a "maptype" by default? it's useful for immutability as well,
@@ -64,7 +89,7 @@ type_based_mappings = [
 # this is recursive. might have some issues if the mapped object is large.
 
 logger = logging.getLogger("mapobj")
-def mapobj(source, dest):
+def mapobj(source, dest, mapper_registry=MapperRegistry()):
     """
     Args:
         source:
@@ -72,23 +97,8 @@ def mapobj(source, dest):
 
     Returns:
     """
-    source_type = type(source)
-    dest_type = type(dest)
-
-    # try a precise match first for destination type
-    for tbm in type_based_mappings:
-        if tbm.origin == source_type and tbm.destination == dest_type:
-            return tbm.mapper(source, dest)
-    # if not found, try a subclass mapping.
-    # TODO: we should let the mapper to specify whether it should work for subclasses or not?
-    # rethink our interface a bit with the sponsor/selector idea in mind, it could simplify
-    # our design by a great deal.
-    logger.warning("Trying subclass mapping")
-    for tbm in type_based_mappings:
-        if tbm.origin == source_type and issubclass(dest_type, tbm.destination):
-            return tbm.mapper(source, dest)
-
-    raise ValueError("Could not map value {source} ({source_type}) through reference object {dest} ({dest_type})".format(**locals()))
+    mapping = mapper_registry.get_best_mapping(source, dest)
+    return mapping.map(source, dest)
 
 class BindException(Exception):
     pass
