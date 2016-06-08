@@ -3,10 +3,9 @@
 
 from inspect import getargspec, getmembers
 from unittest import TestCase, main
+from copy import deepcopy
 import logging
 import codecs
-
-from collections import MutableSequence, Mapping, Container, OrderedDict, namedtuple
 
 
 # mapper will be invoked with the a value of type "origin" and the reference object,
@@ -16,6 +15,9 @@ from collections import MutableSequence, Mapping, Container, OrderedDict, namedt
 # later, we could generalize via sponsor-selector, where type-based mappings are just one of the possible
 # mapping criterias? is there a way we can handle the fact that there could be multiple mappers
 # interested?
+
+#TODO: verify that, when collections are used as reference, if more than one item is provided, all must have the same type
+
 class Mapping(object):
     def interest_level(self, source, reference):
         """
@@ -56,6 +58,21 @@ class TypeMapping(Mapping):
     def map(self, source, reference):
         return self._mapper_func(source, reference)
 
+class ListToTupleMapping(Mapping):
+    def __init__(self, mapobj):
+        self.mapobj = mapobj
+
+    def interest_level(self, source, reference):
+        if type(source) == list and type(reference) == tuple and len(source) == len(reference):
+            return 100
+        if type(source) == list and isinstance(reference, tuple) and len(source) == len(reference):
+            return 50
+        return 0
+
+    def map(self, source, reference):
+        return tuple([self.mapobj(x, reference[0]) for x in source])
+
+
 
 class DefaultMapperRegistry(object):
     def __init__(self, conversion_encoding):
@@ -71,6 +88,10 @@ class DefaultMapperRegistry(object):
             TypeMapping(int, int, lambda v, r: v),
             TypeMapping(int, long, lambda v, r: long(v)),
             TypeMapping(long, int, lambda v, r: int(v)),
+            TypeMapping(tuple, tuple, lambda v, r: deepcopy(v)),
+            TypeMapping(tuple, list, lambda v, r: [self.mapobj(x, r[0]) for x in v]),
+            # TODO: we should check a proper-length tuple can be created.
+            ListToTupleMapping(self.mapobj),
             TypeMapping(int, str, lambda v, r: "{:d}".format(v)),
             TypeMapping(str, int, lambda v, r: int(v)),
             TypeMapping(long, str, lambda v, r: "{:d}".format(v)),
@@ -234,23 +255,23 @@ class TestMappingFromDict(TestCase):
     DICT_IN = {
         "a": 5,
         "b": "whatààà",
-        "c": [{1: 2}],
+        "c": [{1: 2}, {1: 2}],
         "d": {"1": 1, "2": 2},
         "e": {"r": 5, "s": 6}
     }
 
     def test_mapping(self):
         registry = DefaultMapperRegistry(conversion_encoding="utf-8")
-        reference = MyItem(7, "asd", [{2: 3}], {10: "w", 20: "xxx"}, e=Other(9, 10))
+        reference = MyItem(7, "asd", ({2: 3}, {4: 5}), {10: "w", 20: "xxx"}, e=Other(9, 10))
         instance = registry.mapobj(self.DICT_IN, reference)
-        expected = MyItem(5, "whatààà", [{1: 2}], {1: "1", 2: "2"}, e=Other(5, 6))
+        expected = MyItem(5, "whatààà", ({1: 2}, {1:2}), {1: "1", 2: "2"}, e=Other(5, 6))
         self.assertEquals(expected, instance)
 
     def test_string_casting(self):
         registry = DefaultMapperRegistry(conversion_encoding="utf-8")
         reference = MyItem("7", u"asd", [{"2": "3"}], {10: "w", 20: "xxx"}, e=Other("a", "b"))
         instance = registry.mapobj(self.DICT_IN, reference)
-        expected = MyItem("5", u"whatààà", [{"1": "2"}], {1: "1", 2: "2"}, e=Other("5", "6"))
+        expected = MyItem("5", u"whatààà", [{"1": "2"}, {"1": "2"}], {1: "1", 2: "2"}, e=Other("5", "6"))
         self.assertEquals(expected, instance)
 
 
