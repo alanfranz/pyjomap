@@ -90,7 +90,6 @@ class DefaultMapperRegistry(object):
             TypeMapping(long, int, lambda v, r: int(v)),
             TypeMapping(tuple, tuple, lambda v, r: deepcopy(v)),
             TypeMapping(tuple, list, lambda v, r: [self.mapobj(x, r[0]) for x in v]),
-            # TODO: we should check a proper-length tuple can be created.
             ListToTupleMapping(self.mapobj),
             TypeMapping(int, str, lambda v, r: "{:d}".format(v)),
             TypeMapping(str, int, lambda v, r: int(v)),
