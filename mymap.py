@@ -44,18 +44,22 @@ class Mapping(object):
 
 
 class TypeMapping(Mapping):
-    def __init__(self, origin_type, destination_type, mapper_func):
+    def __init__(self, origin_type, destination_type, mapper_func, subclass_cast=False):
         self._origin_type = origin_type
         self._destination_type = destination_type
         self._mapper_func = mapper_func
+        self._subclass_cast = subclass_cast
 
     def interest_level(self, source, reference):
         if type(source) == self._origin_type and type(reference) == self._destination_type:
             return 100
+        if self._subclass_cast and type(source) == self._origin_type and isinstance(reference, self._destination_type):
+            return 50
         return 0
 
     def map(self, source, reference):
-        return self._mapper_func(source, reference)
+        cast_to_type = type(reference)
+        return cast_to_type(self._mapper_func(source, reference))
 
 class ListToTupleMapping(Mapping):
     def __init__(self, mapobj):
@@ -110,7 +114,7 @@ class DefaultMapperRegistry(object):
         # TODO: map tuples to lists and vice-versa
         # TODO: check for other/unknown types which approach could work
         self.type_based_mappings = [
-            TypeMapping(int, int, lambda v, r: v),
+            TypeMapping(int, int, lambda v, r: v, True),
             TypeMapping(int, long, lambda v, r: long(v)),
             TypeMapping(long, int, lambda v, r: int(v)),
             TypeMapping(tuple, tuple, lambda v, r: deepcopy(v)),
@@ -134,7 +138,9 @@ class DefaultMapperRegistry(object):
                               self.type_based_mappings)
         mapping_and_levels = [(mapping, level) for mapping, level in mapping_and_levels if level > 0]
         if not mapping_and_levels:
-            raise ValueError("Could not map value '{source}' through reference object '{reference}'".format(**locals()))
+            source_type = type(source)
+            ref_type = type(reference)
+            raise ValueError("Could not map value '{source}' ({source_type}) through reference object '{reference}' ({ref_type})".format(**locals()))
         mapping_and_levels.sort(key=lambda x: x[1])
         return mapping_and_levels[-1][0]
 
@@ -261,6 +267,9 @@ class TestFieldInspection(TestCase):
         self.assertRaises(BindException, bind, {"a": 7, "b": "asd"}, MyItem)
 
 
+class MyIntSubclass(int):
+    pass
+
 class TestMappingFromDict(TestCase):
     DICT_IN = {
         "a": 5,
@@ -272,10 +281,13 @@ class TestMappingFromDict(TestCase):
 
     def test_mapping(self):
         registry = DefaultMapperRegistry(conversion_encoding="utf-8")
-        reference = MyItem(7, "asd", ({2: 3}, {4: 5}), {10: "w", 20: "xxx"}, e=Other(9, 10))
+        reference = MyItem(MyIntSubclass(7), "asd", ({2: 3}, {4: 5}), {10: "w", 20: "xxx"}, e=Other(9, 10))
+
         instance = registry.mapobj(self.DICT_IN, reference)
-        expected = MyItem(5, "whatààà", ({1: 2}, {1:2}), {1: "1", 2: "2"}, e=Other(5, 6))
+        expected = MyItem(MyIntSubclass(5), "whatààà", ({1: 2}, {1: 2}), {1: "1", 2: "2"}, e=Other(5, 6))
+        self.assertEquals(MyIntSubclass, type(expected.a))
         self.assertEquals(expected, instance)
+
 
     def test_string_casting(self):
         registry = DefaultMapperRegistry(conversion_encoding="utf-8")
