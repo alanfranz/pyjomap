@@ -52,9 +52,6 @@ class TypeMapping(Mapping):
     def interest_level(self, source, reference):
         if type(source) == self._origin_type and type(reference) == self._destination_type:
             return 100
-        # TODO: verify if we can really to that for arbitrary classes, or we might have issues.
-        elif type(source) == self._origin_type and issubclass(type(reference), self._destination_type):
-            return 50
         return 0
 
     def map(self, source, reference):
@@ -67,8 +64,6 @@ class ListToTupleMapping(Mapping):
     def interest_level(self, source, reference):
         if type(source) == list and type(reference) == tuple and len(source) == len(reference):
             return 100
-        if type(source) == list and isinstance(reference, tuple) and len(source) == len(reference):
-            return 50
         return 0
 
     def map(self, source, reference):
