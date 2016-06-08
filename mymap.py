@@ -7,6 +7,7 @@ from copy import deepcopy
 import logging
 import codecs
 
+from collections import Mapping as CollectionMapping
 
 # mapper will be invoked with the a value of type "origin" and the reference object,
 #  and must always return a value of type "destination" (or a compatible/child type? what about long/int)?
@@ -18,6 +19,7 @@ import codecs
 
 #TODO: verify that, when collections are used as reference, if more than one item is provided, all must have the same type
 
+#TODO: rename this, it clashes with collections.Mapping and may create misunderstandings
 class Mapping(object):
     def interest_level(self, source, reference):
         """
@@ -72,6 +74,34 @@ class ListToTupleMapping(Mapping):
     def map(self, source, reference):
         return tuple([self.mapobj(x, reference[0]) for x in source])
 
+class MappingToObjectMapping(Mapping):
+    def __init__(self, mapobj):
+        self.mapobj = mapobj
+
+    def interest_level(self, source, reference):
+        # for the reference object, we don't map classic instances, but everything else would be ok.
+        if isinstance(source, CollectionMapping) and isinstance(reference, object):
+            # we're never the top match. always let better mappers to take precedence over us.
+            return 50
+        return 0
+
+    def map(self, source, reference):
+        """
+        :param source:
+        :param reference:
+        :return:
+        :rtype: same class as reference object
+        """
+        out_properties = {}
+
+        for key, value in source.items():
+            try:
+                out_properties[key] = self.mapobj(value, getattr(reference, key))
+            except TypeError:
+                print type(key)
+                raise
+
+        return bind(out_properties, type(reference))
 
 
 class DefaultMapperRegistry(object):
@@ -101,7 +131,7 @@ class DefaultMapperRegistry(object):
             TypeMapping(list, list, lambda v, r: [self.mapobj(x, r[0]) for x in v]),
             TypeMapping(dict, dict, lambda v, r: dict(
                 [(self.mapobj(x, r.keys()[0]), self.mapobj(y, r.values()[0])) for x, y in v.iteritems()])),
-            TypeMapping(dict, object, lambda v, r: self.mapdict(v, r))
+            MappingToObjectMapping(self.mapobj)
         ]
 
     def get_best_mapping(self, source, reference):
@@ -123,20 +153,6 @@ class DefaultMapperRegistry(object):
         """
         mapping = self.get_best_mapping(source, dest)
         return mapping.map(source, dest)
-
-    def mapdict(self, d, reference):
-        """
-        :param d:
-        :param reference:
-        :return:
-        :rtype: same class as reference object
-        """
-        out_properties = {}
-
-        for key, value in d.items():
-            out_properties[key] = self.mapobj(value, getattr(reference, key))
-
-        return bind(out_properties, type(reference))
 
 
 # supported in source -> dest
