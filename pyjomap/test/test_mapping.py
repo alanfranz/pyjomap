@@ -52,12 +52,12 @@ class TestMappingFromDict(TestCase):
     }
 
     @genty_dataset(
-        (DICT_IN, MyItem(MyIntSubclass(7), "asd", ({2: 3}, {4: 5}), {10: "w", 20: "xxx"}, e=Other(9, 10)),
+        basic=(DICT_IN, MyItem(MyIntSubclass(7), "asd", ({2: 3}, {4: 5}), {10: "w", 20: "xxx"}, e=Other(9, 10)),
          MyItem(MyIntSubclass(5), "whatààà", ({1: 2}, {1: 2}), {1: "1", 2: "2"}, e=Other(5, 6))),
-        (DICT_IN, MyItem("7", u"asd", [{"2": "3"}], {10: "w", 20: "xxx"}, e=Other("a", "b")),
+        string_casting=(DICT_IN, MyItem("7", u"asd", [{"2": "3"}], {10: "w", 20: "xxx"}, e=Other("a", "b")),
          MyItem("5", u"whatààà", [{"1": "2"}, {"1": "2"}], {1: "1", 2: "2"}, e=Other("5", "6"))),
     )
-    def asd(self, source_value, reference, expected):
+    def test_mapping(self, source_value, reference, expected):
         registry = DefaultMapperRegistry(conversion_encoding="utf-8")
         instance = registry.mapobj(source_value, reference)
         self.assertEquals(expected, instance)
