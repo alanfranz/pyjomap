@@ -270,6 +270,8 @@ class TestFieldInspection(TestCase):
 class MyIntSubclass(int):
     pass
 
+def test_from_data()
+
 class TestMappingFromDict(TestCase):
     DICT_IN = {
         "a": 5,
