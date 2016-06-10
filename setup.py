@@ -12,8 +12,8 @@ setup(
         "genty==1.3.2"
     ],
     entry_points={
-        "console_scripts": {
-            "unit": "unittest.__main__:main"
-        }
+        "console_scripts": [
+            "unit=unittest.__main__:main"
+        ]
     }
 )
