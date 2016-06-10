@@ -2,3 +2,5 @@
 .idea/workspace.xml
 devenv/
 *.egg-info
+*.pyo
+*.pyc
