@@ -8,6 +8,8 @@ import logging
 import codecs
 
 from collections import Mapping as CollectionMapping
+from genty import genty, genty_dataset
+
 
 # mapper will be invoked with the a value of type "origin" and the reference object,
 #  and must always return a value of type "destination" (or a compatible/child type? what about long/int)?
@@ -17,9 +19,12 @@ from collections import Mapping as CollectionMapping
 # mapping criterias? is there a way we can handle the fact that there could be multiple mappers
 # interested?
 
-#TODO: verify that, when collections are used as reference, if more than one item is provided, all must have the same type
+# TODO: verify that, when collections are used as reference, if more than one item is provided, all must have the same type
 
-#TODO: rename this, it clashes with collections.Mapping and may create misunderstandings
+# TODO: rename this, it clashes with collections.Mapping and may create misunderstandings
+
+
+
 class Mapping(object):
     def interest_level(self, source, reference):
         """
@@ -61,6 +66,7 @@ class TypeMapping(Mapping):
         cast_to_type = type(reference)
         return cast_to_type(self._mapper_func(source, reference))
 
+
 class ListToTupleMapping(Mapping):
     def __init__(self, mapobj):
         self.mapobj = mapobj
@@ -72,6 +78,7 @@ class ListToTupleMapping(Mapping):
 
     def map(self, source, reference):
         return tuple([self.mapobj(x, reference[0]) for x in source])
+
 
 class MappingToObjectMapping(Mapping):
     def __init__(self, mapobj):
@@ -140,7 +147,9 @@ class DefaultMapperRegistry(object):
         if not mapping_and_levels:
             source_type = type(source)
             ref_type = type(reference)
-            raise ValueError("Could not map value '{source}' ({source_type}) through reference object '{reference}' ({ref_type})".format(**locals()))
+            raise ValueError(
+                "Could not map value '{source}' ({source_type}) through reference object '{reference}' ({ref_type})".format(
+                    **locals()))
         mapping_and_levels.sort(key=lambda x: x[1])
         return mapping_and_levels[-1][0]
 
@@ -214,9 +223,6 @@ def getfieldsandvalues(o):
     return set([(name, value) for name, value in getmembers(o) if not name.startswith("_") and not callable(value)])
 
 
-
-
-
 class MyItem(object):
     def __init__(self, a, b, c=None, d=None, e=None):
         self.a = a
@@ -270,8 +276,8 @@ class TestFieldInspection(TestCase):
 class MyIntSubclass(int):
     pass
 
-def test_from_data()
 
+@genty
 class TestMappingFromDict(TestCase):
     DICT_IN = {
         "a": 5,
@@ -281,21 +287,15 @@ class TestMappingFromDict(TestCase):
         "e": {"r": 5, "s": 6}
     }
 
-    def test_mapping(self):
+    @genty_dataset(
+        (DICT_IN, MyItem(MyIntSubclass(7), "asd", ({2: 3}, {4: 5}), {10: "w", 20: "xxx"}, e=Other(9, 10)),
+         MyItem(MyIntSubclass(5), "whatààà", ({1: 2}, {1: 2}), {1: "1", 2: "2"}, e=Other(5, 6))),
+        (DICT_IN, MyItem("7", u"asd", [{"2": "3"}], {10: "w", 20: "xxx"}, e=Other("a", "b")),
+         MyItem("5", u"whatààà", [{"1": "2"}, {"1": "2"}], {1: "1", 2: "2"}, e=Other("5", "6"))),
+    )
+    def asd(self, source_value, reference, expected):
         registry = DefaultMapperRegistry(conversion_encoding="utf-8")
-        reference = MyItem(MyIntSubclass(7), "asd", ({2: 3}, {4: 5}), {10: "w", 20: "xxx"}, e=Other(9, 10))
-
-        instance = registry.mapobj(self.DICT_IN, reference)
-        expected = MyItem(MyIntSubclass(5), "whatààà", ({1: 2}, {1: 2}), {1: "1", 2: "2"}, e=Other(5, 6))
-        self.assertEquals(MyIntSubclass, type(expected.a))
-        self.assertEquals(expected, instance)
-
-
-    def test_string_casting(self):
-        registry = DefaultMapperRegistry(conversion_encoding="utf-8")
-        reference = MyItem("7", u"asd", [{"2": "3"}], {10: "w", 20: "xxx"}, e=Other("a", "b"))
-        instance = registry.mapobj(self.DICT_IN, reference)
-        expected = MyItem("5", u"whatààà", [{"1": "2"}, {"1": "2"}], {1: "1", 2: "2"}, e=Other("5", "6"))
+        instance = registry.mapobj(source_value, reference)
         self.assertEquals(expected, instance)
 
 
