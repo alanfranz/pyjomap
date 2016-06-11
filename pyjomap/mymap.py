@@ -73,7 +73,7 @@ class CollectionSourceTypeMapping(ObjectMapping):
         self._origin_type = origin_type
         self._destination_type = destination_type
         self._mapper_func = mapper_func
-        self._full_match_interest_level = 50
+        self._full_match_interest_level = 60
 
     def interest_level(self, source, reference):
         if isinstance(source, self._origin_type) and isinstance(reference, self._destination_type):
@@ -152,8 +152,8 @@ class DefaultMapperRegistry(object):
             TypeMapping(str, unicode, lambda v, r: v.decode(conversion_encoding)),
             TypeMapping(unicode, unicode, lambda v, r: v),
             CollectionSourceTypeMapping(Iterable, list, lambda v, r: [self.mapobj(x, r[0]) for x in v]),
-            TypeMapping(dict, dict, lambda v, r: dict(
-                [(self.mapobj(x, r.keys()[0]), self.mapobj(y, r.values()[0])) for x, y in v.iteritems()])),
+            CollectionSourceTypeMapping(Mapping, dict, lambda v, r: dict(
+                [(self.mapobj(x, r.keys()[0]), self.mapobj(y, r.values()[0])) for x, y in v.items()])),
             MappingToObjectMapping(self.mapobj)
         ]
 
