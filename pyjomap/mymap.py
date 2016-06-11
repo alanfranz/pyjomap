@@ -16,6 +16,7 @@ from collections import Mapping, Iterable
 # interested?
 
 # TODO: verify that, when collections are used as reference, if more than one item is provided, all must have the same type
+# TODO: support Set
 
 
 def _first(iterable):
@@ -150,7 +151,6 @@ class DefaultMapperRegistry(object):
             TypeMapping(unicode, str, lambda v, r: v.encode(conversion_encoding)),
             TypeMapping(str, unicode, lambda v, r: v.decode(conversion_encoding)),
             TypeMapping(unicode, unicode, lambda v, r: v),
-            TypeMapping(list, list, lambda v, r: [self.mapobj(x, r[0]) for x in v]),
             CollectionSourceTypeMapping(Iterable, list, lambda v, r: [self.mapobj(x, r[0]) for x in v]),
             TypeMapping(dict, dict, lambda v, r: dict(
                 [(self.mapobj(x, r.keys()[0]), self.mapobj(y, r.values()[0])) for x, y in v.iteritems()])),
