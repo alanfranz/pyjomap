@@ -30,6 +30,7 @@ class MyItem(object):
     def __repr__(self):
         return str(self)
 
+
 class Other(object):
     def __init__(self, r, s):
         self.r = r
@@ -38,8 +39,10 @@ class Other(object):
     def __eq__(self, other):
         return getattr(other, "__dict__", None) is not None and self.__dict__ == other.__dict__
 
+
 class MyIntSubclass(int):
     pass
+
 
 @genty
 class TestMappingFromDict(TestCase):
@@ -53,9 +56,9 @@ class TestMappingFromDict(TestCase):
 
     @genty_dataset(
         basic=(DICT_IN, MyItem(MyIntSubclass(7), "asd", ({2: 3}, {4: 5}), {10: "w", 20: "xxx"}, e=Other(9, 10)),
-         MyItem(MyIntSubclass(5), "whatààà", ({1: 2}, {1: 2}), {1: "1", 2: "2"}, e=Other(5, 6))),
+               MyItem(MyIntSubclass(5), "whatààà", ({1: 2}, {1: 2}), {1: "1", 2: "2"}, e=Other(5, 6))),
         string_casting=(DICT_IN, MyItem("7", u"asd", [{"2": "3"}], {10: "w", 20: "xxx"}, e=Other("a", "b")),
-         MyItem("5", u"whatààà", [{"1": "2"}, {"1": "2"}], {1: "1", 2: "2"}, e=Other("5", "6"))),
+                        MyItem("5", u"whatààà", [{"1": "2"}, {"1": "2"}], {1: "1", 2: "2"}, e=Other("5", "6"))),
     )
     def test_mapping(self, source_value, reference, expected):
         registry = DefaultMapperRegistry(conversion_encoding="utf-8")

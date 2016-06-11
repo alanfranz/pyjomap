@@ -4,7 +4,7 @@
 from inspect import getargspec, getmembers
 from copy import deepcopy
 import codecs
-from collections import Mapping as CollectionMapping
+from collections import Mapping
 
 
 # mapper will be invoked with the a value of type "origin" and the reference object,
@@ -17,11 +17,9 @@ from collections import Mapping as CollectionMapping
 
 # TODO: verify that, when collections are used as reference, if more than one item is provided, all must have the same type
 
-# TODO: rename this, it clashes with collections.Mapping and may create misunderstandings
 
 
-
-class Mapping(object):
+class ObjectMapping(object):
     def interest_level(self, source, reference):
         """
         Args:
@@ -44,7 +42,7 @@ class Mapping(object):
         raise NotImplementedError("must be implemented")
 
 
-class TypeMapping(Mapping):
+class TypeMapping(ObjectMapping):
     def __init__(self, origin_type, destination_type, mapper_func, subclass_cast=False):
         self._origin_type = origin_type
         self._destination_type = destination_type
@@ -63,7 +61,7 @@ class TypeMapping(Mapping):
         return cast_to_type(self._mapper_func(source, reference))
 
 
-class ListToTupleMapping(Mapping):
+class ListToTupleMapping(ObjectMapping):
     def __init__(self, mapobj):
         self.mapobj = mapobj
 
@@ -76,13 +74,13 @@ class ListToTupleMapping(Mapping):
         return tuple([self.mapobj(x, reference[0]) for x in source])
 
 
-class MappingToObjectMapping(Mapping):
+class MappingToObjectMapping(ObjectMapping):
     def __init__(self, mapobj):
         self.mapobj = mapobj
 
     def interest_level(self, source, reference):
         # for the reference object, we don't map classic instances, but everything else would be ok.
-        if isinstance(source, CollectionMapping) and isinstance(reference, object):
+        if isinstance(source, Mapping) and isinstance(reference, object):
             # we're never the top match. always let better mappers to take precedence over us.
             return 50
         return 0
