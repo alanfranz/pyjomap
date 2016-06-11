@@ -4,7 +4,7 @@
 from inspect import getargspec, getmembers
 from copy import deepcopy
 import codecs
-from collections import Mapping
+from collections import Mapping, Iterable
 
 
 # mapper will be invoked with the a value of type "origin" and the reference object,
@@ -17,6 +17,9 @@ from collections import Mapping
 
 # TODO: verify that, when collections are used as reference, if more than one item is provided, all must have the same type
 
+
+def _first(iterable):
+    return iter(iterable).next()
 
 
 class ObjectMapping(object):
@@ -42,18 +45,38 @@ class ObjectMapping(object):
         raise NotImplementedError("must be implemented")
 
 
+#TODO: we should create a "mappingbuilder" which could then be configured with multiple values; that
+#would prevent the need of having tons of options and/or slightly different classes.
 class TypeMapping(ObjectMapping):
-    def __init__(self, origin_type, destination_type, mapper_func, subclass_cast=False):
+    def __init__(self, origin_type, destination_type, mapper_func, subclass_cast=False, full_match_interest_level=100):
         self._origin_type = origin_type
         self._destination_type = destination_type
         self._mapper_func = mapper_func
         self._subclass_cast = subclass_cast
+        self._full_match_interest_level = full_match_interest_level
 
     def interest_level(self, source, reference):
         if type(source) == self._origin_type and type(reference) == self._destination_type:
-            return 100
+            return self._full_match_interest_level
         if self._subclass_cast and type(source) == self._origin_type and isinstance(reference, self._destination_type):
             return 50
+        return 0
+
+    # TODO: check whether always casting makes sense.
+    def map(self, source, reference):
+        cast_to_type = type(reference)
+        return cast_to_type(self._mapper_func(source, reference))
+
+class CollectionSourceTypeMapping(ObjectMapping):
+    def __init__(self, origin_type, destination_type, mapper_func):
+        self._origin_type = origin_type
+        self._destination_type = destination_type
+        self._mapper_func = mapper_func
+        self._full_match_interest_level = 50
+
+    def interest_level(self, source, reference):
+        if isinstance(source, self._origin_type) and isinstance(reference, self._destination_type):
+            return self._full_match_interest_level
         return 0
 
     def map(self, source, reference):
@@ -128,6 +151,7 @@ class DefaultMapperRegistry(object):
             TypeMapping(str, unicode, lambda v, r: v.decode(conversion_encoding)),
             TypeMapping(unicode, unicode, lambda v, r: v),
             TypeMapping(list, list, lambda v, r: [self.mapobj(x, r[0]) for x in v]),
+            CollectionSourceTypeMapping(Iterable, list, lambda v, r: [self.mapobj(x, r[0]) for x in v]),
             TypeMapping(dict, dict, lambda v, r: dict(
                 [(self.mapobj(x, r.keys()[0]), self.mapobj(y, r.values()[0])) for x, y in v.iteritems()])),
             MappingToObjectMapping(self.mapobj)
