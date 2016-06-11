@@ -112,7 +112,6 @@ class DefaultMapperRegistry(object):
         # TODO: we should create a "sametypemapper" which just:
         # a) keeps the object for immutable objects
         # b) copies the object for mutable/unknown types
-        # TODO: map tuples to lists and vice-versa
         # TODO: check for other/unknown types which approach could work
         self.type_based_mappings = [
             TypeMapping(int, int, lambda v, r: v, True),
