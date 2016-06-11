@@ -2,6 +2,7 @@
 from unittest import TestCase, main
 from genty import genty, genty_dataset
 from pyjomap.mymap import DefaultMapperRegistry, BindException, bind, getfields
+from collections import OrderedDict
 
 
 class MyItem(object):
@@ -59,7 +60,9 @@ class TestMappingFromDict(TestCase):
                MyItem(MyIntSubclass(5), "whatààà", ({1: 2}, {1: 2}), {1: "1", 2: "2"}, e=Other(5, 6))),
         string_casting=(DICT_IN, MyItem("7", u"asd", [{"2": "3"}], {10: "w", 20: "xxx"}, e=Other("a", "b")),
                         MyItem("5", u"whatààà", [{"1": "2"}, {"1": "2"}], {1: "1", 2: "2"}, e=Other("5", "6"))),
-        iterable=(iter([1, 2, 3]), ["a"], ["1", "2", "3"])
+        iterable=(iter([1, 2, 3]), ["a"], ["1", "2", "3"]),
+        mapping=(OrderedDict([(1,2)]), {5:6}, {1:2})
+
 
     )
     def test_mapping(self, source_value, reference, expected):
