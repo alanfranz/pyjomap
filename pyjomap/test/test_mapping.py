@@ -55,6 +55,8 @@ class TestMappingFromDict(TestCase):
         "e": {"r": 5, "s": 6}
     }
 
+
+
     @genty_dataset(
         basic=(DICT_IN, MyItem(MyIntSubclass(7), "asd", ({2: 3}, {4: 5}), {10: "w", 20: "xxx"}, e=Other(9, 10)),
                MyItem(MyIntSubclass(5), "whatààà", ({1: 2}, {1: 2}), {1: "1", 2: "2"}, e=Other(5, 6))),
@@ -62,13 +64,28 @@ class TestMappingFromDict(TestCase):
                         MyItem("5", u"whatààà", [{"1": "2"}, {"1": "2"}], {1: "1", 2: "2"}, e=Other("5", "6"))),
         iterable=(iter([1, 2, 3]), ["a"], ["1", "2", "3"]),
         mapping=(OrderedDict([(1, 2)]), {5: 6}, {1: 2}),
-        booleans=([True, False], (5, 7), (1, 0))
-
     )
+
     def test_mapping(self, source_value, reference, expected):
         registry = DefaultMapperRegistry(conversion_encoding="utf-8")
         instance = registry.mapobj(source_value, reference)
         self.assertEquals(expected, instance)
+
+    # boolean requires more testing, since False == 0 and True == 1 returns True
+    def test_boolean_to_int_mapping(self):
+        registry = DefaultMapperRegistry(conversion_encoding="utf-8")
+        instance = registry.mapobj([True, False], [0])
+        self.assertEquals([1,0], instance)
+        self.assertIs(1, instance[0])
+        self.assertIs(0, instance[1])
+
+    def test_int_to_boolean_mapping(self):
+        registry = DefaultMapperRegistry(conversion_encoding="utf-8")
+        instance = registry.mapobj([1, 0], [True])
+        self.assertEquals([True, False], instance)
+        self.assertIs(True, instance[0])
+        self.assertIs(False, instance[1])
+
 
 
 class TestFieldInspection(TestCase):
