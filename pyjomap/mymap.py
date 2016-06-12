@@ -46,8 +46,8 @@ class ObjectMapping(object):
         raise NotImplementedError("must be implemented")
 
 
-#TODO: we should create a "mappingbuilder" which could then be configured with multiple values; that
-#would prevent the need of having tons of options and/or slightly different classes.
+# TODO: we should create a "mappingbuilder" which could then be configured with multiple values; that
+# would prevent the need of having tons of options and/or slightly different classes.
 class TypeMapping(ObjectMapping):
     def __init__(self, origin_type, destination_type, mapper_func, subclass_cast=False, full_match_interest_level=100):
         self._origin_type = origin_type
@@ -67,6 +67,7 @@ class TypeMapping(ObjectMapping):
     def map(self, source, reference):
         cast_to_type = type(reference)
         return cast_to_type(self._mapper_func(source, reference))
+
 
 class CollectionSourceTypeMapping(ObjectMapping):
     def __init__(self, origin_type, destination_type, mapper_func):
@@ -238,13 +239,3 @@ def getfields(o):
 
 def getfieldsandvalues(o):
     return set([(name, value) for name, value in getmembers(o) if not name.startswith("_") and not callable(value)])
-
-
-
-
-
-
-
-
-
-
