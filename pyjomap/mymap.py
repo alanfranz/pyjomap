@@ -212,7 +212,7 @@ class DefaultMapperRegistry(object):
             TypeMappingBuilder().with_origin_type(bool).with_destination_type(int).
             with_mapper_func(lambda v, r: (0, 1)[v]).with_interest_level(100).build(),
 
-            TypeMapping(int, int, lambda v, r: v, True),
+            TypeMapping(int, int, (lambda v, r: v), True),
             TypeMapping(int, long, lambda v, r: long(v)),
             TypeMapping(long, int, lambda v, r: int(v)),
             TypeMapping(tuple, tuple, lambda v, r: deepcopy(v)),
