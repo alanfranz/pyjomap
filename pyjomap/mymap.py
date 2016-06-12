@@ -45,6 +45,76 @@ class ObjectMapping(object):
         """
         raise NotImplementedError("must be implemented")
 
+class GenericTypeMapping(ObjectMapping):
+    def __init__(self, origin_type, destination_type, mapper_func, interest_level,
+                 allow_origin_subclasses=False, allow_destination_subclasses=False,
+                 cast_to_destination_type=False):
+        self._origin_type = origin_type
+        self._destination_type = destination_type
+        self._mapper_func = mapper_func
+        self._interest_level = interest_level
+        self._allow_origin_subclasses = allow_origin_subclasses
+        self._allow_destination_subclasses = allow_destination_subclasses
+        self._cast_to_destination_type = cast_to_destination_type
+
+    def interest_level(self, source, reference):
+        if not isinstance(source, self._origin_type):
+            return 0
+
+        if not self._allow_origin_subclasses and type(source) != self._origin_type:
+            return 0
+
+        if not isinstance(reference, self._destination_type):
+            return 0
+
+        if not self._allow_destination_subclasses and type(reference) != self._destination_type:
+            return 0
+
+        return self._interest_level
+
+    def map(self, source, reference):
+        if self._cast_to_destination_type:
+            cast_to_type = type(reference)
+            return cast_to_type(self._mapper_func(source, reference))
+
+        return self._mapper_func(source, reference)
+
+
+class TypeMappingBuilder(object):
+    def __init__(self):
+        self._kw = {}
+
+    def build(self):
+        return GenericTypeMapping(**self._kw)
+
+    def with_origin_type(self, origin_type):
+        self._kw["origin_type"] = origin_type
+        return self
+
+    def with_destination_type(self, destination_type):
+        self._kw["destination_type"] = destination_type
+        return self
+    
+    def with_mapper_func(self, mapper_func):
+        self._kw["mapper_func"] = mapper_func
+        return self
+
+    def with_interest_level(self, interest_level):
+        self._kw["interest_level"] = interest_level
+        return self
+    
+    def with_allow_origin_subclasses(self, allow_origin_subclasses=True):
+        self._kw["allow_origin_subclasses"] = allow_origin_subclasses
+        return self
+    
+    def with_allow_destination_subclasses(self, allow_destination_subclasses=True):
+        self._kw["allow_destination_subclasses"] = allow_destination_subclasses
+        return self
+
+    def with_cast_to_destination_type(self, cast_to_destination_type=True):
+        self._kw["cast_to_destination_type"] = cast_to_destination_type
+        return self
+
 
 # TODO: we should create a "mappingbuilder" which could then be configured with multiple values; that
 # would prevent the need of having tons of options and/or slightly different classes.
@@ -139,6 +209,9 @@ class DefaultMapperRegistry(object):
         # b) copies the object for mutable/unknown types
         # TODO: check for other/unknown types which approach could work
         self.type_based_mappings = [
+            TypeMappingBuilder().with_origin_type(bool).with_destination_type(int).
+            with_mapper_func(lambda v, r: (0, 1)[v]).with_interest_level(100).build(),
+
             TypeMapping(int, int, lambda v, r: v, True),
             TypeMapping(int, long, lambda v, r: long(v)),
             TypeMapping(long, int, lambda v, r: int(v)),

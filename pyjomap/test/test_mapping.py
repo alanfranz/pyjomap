@@ -61,7 +61,8 @@ class TestMappingFromDict(TestCase):
         string_casting=(DICT_IN, MyItem("7", u"asd", [{"2": "3"}], {10: "w", 20: "xxx"}, e=Other("a", "b")),
                         MyItem("5", u"whatààà", [{"1": "2"}, {"1": "2"}], {1: "1", 2: "2"}, e=Other("5", "6"))),
         iterable=(iter([1, 2, 3]), ["a"], ["1", "2", "3"]),
-        mapping=(OrderedDict([(1, 2)]), {5: 6}, {1: 2})
+        mapping=(OrderedDict([(1, 2)]), {5: 6}, {1: 2}),
+        booleans=([True, False], (5, 7), (1, 0))
 
     )
     def test_mapping(self, source_value, reference, expected):
