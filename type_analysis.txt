@@ -1,0 +1,11 @@
+base types:
+bool int float long complex str unicode list tuple bytearray buffer xrange set frozenset dict memoryview
+
+from bool:
+to:
+bool - ok
+
+
+
+
++ collections

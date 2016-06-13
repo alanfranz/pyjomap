@@ -18,6 +18,12 @@ from collections import Mapping, Iterable
 # TODO: verify that, when collections are used as reference, if more than one item is provided, all must have the same type
 # TODO: support Set
 
+from numbers import Number
+
+
+
+
+
 
 def _first(iterable):
     return iter(iterable).next()
@@ -44,6 +50,23 @@ class ObjectMapping(object):
         Returns: an item of the same (or compatible) type as the reference object, result of the mapping.
         """
         raise NotImplementedError("must be implemented")
+
+class SameExactTypeImmutableMapping(ObjectMapping):
+    """
+    if source and reference are exactly the same type, and they're immutable,
+    just return the source object unchanged.
+    """
+    _immutable_types = (Number, basestring)
+
+    _interest_level = 400
+
+    def interest_level(self, source, reference):
+        if type(source) == type(reference) and isinstance(source, self._immutable_types):
+            return self._interest_level
+        return 0
+
+    def map(self, source, reference):
+        return source
 
 class GenericTypeMapping(ObjectMapping):
     def __init__(self, origin_type, destination_type, mapper_func, interest_level,
@@ -209,13 +232,14 @@ class DefaultMapperRegistry(object):
         # b) copies the object for mutable/unknown types
         # TODO: check for other/unknown types which approach could work
         self.type_based_mappings = [
+            SameExactTypeImmutableMapping(),
+
             TypeMappingBuilder().with_origin_type(bool).with_destination_type(int).
             with_mapper_func(lambda v, r: (0, 1)[v]).with_interest_level(100).build(),
 
             TypeMappingBuilder().with_origin_type(int).with_destination_type(bool).
             with_mapper_func(lambda v, r: (False, True)[v]).with_interest_level(100).build(),
 
-            TypeMapping(int, int, (lambda v, r: v), True),
             TypeMapping(int, long, lambda v, r: long(v)),
             TypeMapping(long, int, lambda v, r: int(v)),
             TypeMapping(tuple, tuple, lambda v, r: deepcopy(v)),
@@ -224,10 +248,8 @@ class DefaultMapperRegistry(object):
             TypeMapping(int, str, lambda v, r: "{:d}".format(v)),
             TypeMapping(str, int, lambda v, r: int(v)),
             TypeMapping(long, str, lambda v, r: "{:d}".format(v)),
-            TypeMapping(str, str, lambda v, r: v),
             TypeMapping(unicode, str, lambda v, r: v.encode(conversion_encoding)),
             TypeMapping(str, unicode, lambda v, r: v.decode(conversion_encoding)),
-            TypeMapping(unicode, unicode, lambda v, r: v),
             CollectionSourceTypeMapping(Iterable, list, lambda v, r: [self.mapobj(x, r[0]) for x in v]),
             CollectionSourceTypeMapping(Mapping, dict, lambda v, r: dict(
                 [(self.mapobj(x, r.keys()[0]), self.mapobj(y, r.values()[0])) for x, y in v.items()])),

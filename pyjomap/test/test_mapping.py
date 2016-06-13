@@ -44,6 +44,10 @@ class Other(object):
 class MyIntSubclass(int):
     pass
 
+class MapMe(object):
+    def __init__(self, **kwargs):
+        for k, v in kwargs.iteritems():
+            setattr(self, k, v)
 
 @genty
 class TestMappingFromDict(TestCase):
@@ -58,12 +62,13 @@ class TestMappingFromDict(TestCase):
 
 
     @genty_dataset(
-        basic=(DICT_IN, MyItem(MyIntSubclass(7), "asd", ({2: 3}, {4: 5}), {10: "w", 20: "xxx"}, e=Other(9, 10)),
-               MyItem(MyIntSubclass(5), "whatààà", ({1: 2}, {1: 2}), {1: "1", 2: "2"}, e=Other(5, 6))),
+        basic=(DICT_IN, MyItem(7, "asd", ({2: 3}, {4: 5}), {10: "w", 20: "xxx"}, e=Other(9, 10)),
+               MyItem(5, "whatààà", ({1: 2}, {1: 2}), {1: "1", 2: "2"}, e=Other(5, 6))),
         string_casting=(DICT_IN, MyItem("7", u"asd", [{"2": "3"}], {10: "w", 20: "xxx"}, e=Other("a", "b")),
                         MyItem("5", u"whatààà", [{"1": "2"}, {"1": "2"}], {1: "1", 2: "2"}, e=Other("5", "6"))),
         iterable=(iter([1, 2, 3]), ["a"], ["1", "2", "3"]),
         mapping=(OrderedDict([(1, 2)]), {5: 6}, {1: 2}),
+        bool_to_bool=([True], [False], [True])
     )
 
     def test_mapping(self, source_value, reference, expected):
