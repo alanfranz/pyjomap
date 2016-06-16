@@ -17,6 +17,7 @@ from collections import Mapping, Iterable
 
 # TODO: verify that, when collections are used as reference, if more than one item is provided, all must have the same type
 # TODO: support Set
+# TODO: int_or_long type
 
 from numbers import Number
 
@@ -139,6 +140,36 @@ class TypeMappingBuilder(object):
         return self
 
 
+class CastOnlyMapping(ObjectMapping):
+    """
+    When just a cast is enough to turn one type into another,
+    especially for builtin types.
+    """
+    def __init__(self, origin_type, interest_level, *destination_types):
+        if not destination_types:
+            raise ValueError("at least one destination type should be passed")
+
+        self._mappers = []
+        for destination_type in destination_types:
+            type_mapper = TypeMappingBuilder().with_origin_type(origin_type).with_destination_type(destination_type).with_interest_level(interest_level).with_cast_to_destination_type(
+                ).with_mapper_func(lambda v, r: v).build()
+            self._mappers.append(type_mapper)
+
+    def interest_level(self, source, reference):
+        mapper, interest_level = self._get_actual_mapper_and_interest_level(source, reference)
+        return interest_level
+
+    def _get_actual_mapper_and_interest_level(self, source, reference):
+        mappers_and_interest_levels = [(m, m.interest_level(source, reference)) for m in self._mappers]
+        mappers_and_interest_levels.sort(key=lambda x: x[1])
+        return mappers_and_interest_levels[-1]
+
+    def map(self, source, reference):
+        mapper, interest_level = self._get_actual_mapper_and_interest_level(source, reference)
+        return mapper.map(source, reference)
+
+
+
 # TODO: we should create a "mappingbuilder" which could then be configured with multiple values; that
 # would prevent the need of having tons of options and/or slightly different classes.
 class TypeMapping(ObjectMapping):
@@ -233,12 +264,8 @@ class DefaultMapperRegistry(object):
         # TODO: check for other/unknown types which approach could work
         self.type_based_mappings = [
             SameExactTypeImmutableMapping(),
-
-            TypeMappingBuilder().with_origin_type(bool).with_destination_type(int).
-            with_mapper_func(lambda v, r: (0, 1)[v]).with_interest_level(100).build(),
-
-            TypeMappingBuilder().with_origin_type(int).with_destination_type(bool).
-            with_mapper_func(lambda v, r: (False, True)[v]).with_interest_level(100).build(),
+            CastOnlyMapping(bool, 300, int, long, float, complex, str, unicode),
+            CastOnlyMapping(int, 300, bool, long, float, complex, str, unicode),
 
             TypeMapping(int, long, lambda v, r: long(v)),
             TypeMapping(long, int, lambda v, r: int(v)),
