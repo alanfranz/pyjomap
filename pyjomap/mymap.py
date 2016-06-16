@@ -266,9 +266,9 @@ class DefaultMapperRegistry(object):
             SameExactTypeImmutableMapping(),
             CastOnlyMapping(bool, 300, int, long, float, complex, str, unicode),
             CastOnlyMapping(int, 300, bool, long, float, complex, str, unicode),
-
-            TypeMapping(int, long, lambda v, r: long(v)),
-            TypeMapping(long, int, lambda v, r: int(v)),
+            CastOnlyMapping(long, 300, bool, int, float, complex, str, unicode),
+            # TODO: should we support automatic casting of floats to int/long ?
+            CastOnlyMapping(float, 300, str, unicode),
             TypeMapping(tuple, tuple, lambda v, r: deepcopy(v)),
             TypeMapping(tuple, list, lambda v, r: [self.mapobj(x, r[0]) for x in v]),
             ListToTupleMapping(self.mapobj),
